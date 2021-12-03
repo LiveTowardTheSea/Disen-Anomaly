@@ -15,6 +15,7 @@ class Node_Extractor(nn.Module):
         self.extractor.bias.data.uniform_(-stdv, stdv)    
     
     def forward(self, node_feature):
+        # node_feature = torch.cat((node_feature,adj),dim=-1)
         feature = self.dropout(self.extractor(node_feature))   #(n,channel*k_dim)  # 如何确保这些因素之间存在一些独立性
         return feature
 

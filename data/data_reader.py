@@ -86,6 +86,11 @@ class DataLoader:
     def get_adj(self):
         return self.adj
 
+    def get_structure_label(self):
+        return self.structure_label
+    
+    def get_attribute_label(self):
+        return self.attribute_label
 
 
 

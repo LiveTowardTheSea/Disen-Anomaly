@@ -7,7 +7,7 @@ class Disen_Model(nn.Module):
         super().__init__()
         self.encoder = Encoder(feature_dim, config=config)
         self.decoder = Decoder(feature_dim,node_dim=config.nchannel*config.kdim,
-                                                        edge_dim=config.channel*config.kdim)
+                               edge_dim=config.channel*config.kdim, edge_channel=config.channel)
     
     def forward(self, x, neighbor_id):
         n_feature, ne_feature, mutual_info = self.encoder(x, neighbor_id)

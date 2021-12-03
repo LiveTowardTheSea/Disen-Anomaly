@@ -59,5 +59,5 @@ class Mine(nn.Module):
         re = torch.exp(self.forward(margin))
         mi_lb = torch.mean(le, dim=0) - torch.log(torch.mean(re, dim=0))
         return {'le':le,
-                        're':re,
-                        'mi_lb':mi_lb}
+                're':re,
+                'mi_lb':mi_lb}

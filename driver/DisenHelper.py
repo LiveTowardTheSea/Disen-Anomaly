@@ -25,16 +25,24 @@ class DisenHelper(object):
         feature = self.data_reader.get_feature()
         adj = self.data_reader.get_adj()
         label = self.data_reader.get_label()
+        structure_label = self.data_reader.get_structure_label()
+        attribute_label = self.data_reader.get_attribute_label()
         feature = torch.from_numpy(feature).float()
         label = torch.from_numpy(label).long()  #(n,c)
         adj = torch.from_numpy(adj).float()
+        structure_label = torch.from_numpy(structure_label).long()
+        attribute_label = torch.from_numpy(attribute_label).long()
         if  self.config.use_cuda:   # 使用cuda
             feature = feature.cuda()
             adj = adj.cuda()
             label = label.cuda()
+            structure_label = structure_label.cuda()
+            attribute_label = attribute_label.cuda()
         self.feature = feature
         self.label = label
         self.adj = adj
+        self.structure_label = structure_label
+        self.attribute_label = attribute_label
 
         self.alpha = self.config.alpha
         self.loss_fn = self.att_adj_mutual
@@ -120,8 +128,15 @@ class DisenHelper(object):
         if self.config.use_cuda:
             pred_label = pred_label.cpu().numpy()    # unknwon whether use detach or not
             targ_label = self.label.cpu().numpy()
+            targ_s_label = self.structure_label.cpu().numpy()
+            targ_a_label = self.attribute_label.cpu().numpy()
             pred_score = pred_score.detach().cpu().numpy()
+        # 预测对的结构异常的数目
+        pred_right_s = np.sum((pred_label == 1)*(pred_label == targ_s_label))
+        pred_right_a = np.sum((pred_label == 1)*(pred_label == targ_a_label))
         evaluation = metric.eval_pr(pred_score, pred_label, targ_label)
+        evaluation['structure_num'] = pred_right_s
+        evaluation['attribute_num'] = pred_right_a
         return evaluation
 
 

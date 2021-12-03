@@ -22,7 +22,7 @@ class SparseInput(nn.Module):
 
 class DisenGCN(nn.Module):
     def __init__(self, feature_dim=140, nlayer=6, first_channel=8, k_dim=16, 
-                                    nclass=7, dec_k =1, dropout=0.35, routit=5, tau=1.0, jump=True,every_linear=True):
+                 nclass=7, dec_k =1, dropout=0.35, routit=5, tau=1.0, jump=True,every_linear=True):
         super().__init__()
         cur_dim = first_channel * k_dim
         #cur_dim = 0
@@ -33,11 +33,12 @@ class DisenGCN(nn.Module):
         in_caps = None
         out_caps = first_channel
         for i in range(self.nlayer):
-            self.layers.append(Routing(k_dim, out_caps, in_caps, routit, tau,every_linear))
+            self.layers.append(Routing(k_dim, out_caps, in_caps, routit, tau, every_linear))
             cur_dim += out_caps * k_dim
             in_caps = out_caps
             out_caps = max(1, in_caps-dec_k)
         self.dropout = nn.Dropout(dropout)
+        
     def forward(self, feature, neighbor_id):
         # feature:(n, input_dim)
         x = feature
@@ -54,5 +55,3 @@ class DisenGCN(nn.Module):
         #distribution = self.classifier(hidden)
         return hidden
         
-
-

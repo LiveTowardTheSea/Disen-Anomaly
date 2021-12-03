@@ -50,15 +50,15 @@ def train(classifier, config):
         metrics = classifier.get_metric()
         metric_list.append(metrics)
         print('Epoch: {}/{} ---- train-loss:{:.4f}, precision:{:.2f}%, '
-              'recall:{:.2f}%, f-score:{:.2f}%, accuracy:{:.2f}%, ' 
-              'roc-auc:{:.2f}% '.format(i, config.epoch, loss_item, metrics['p']*100,
-                                                metrics['r']*100, metrics['f1']*100,
-                                                 metrics['acc']*100, metrics['auc']*100))
+              'recall:{:.2f}%, f-score:{:.2f}%, structure_num:{}, '
+              'attribute_num:{}, roc-auc:{:.2f}% '.format(i+1, config.epoch, loss_item, metrics['p']*100,
+                                                 metrics['r']*100, metrics['f1']*100,metrics['structure_num'],
+                                                 metrics['attribute_num'], metrics['auc']*100))
         
         if metrics['f1'] >= best_f1:
             wait_cnt = 0
             best_f1 = metrics['f1']
-            best_epoch = i
+            best_epoch = i+1
             torch.save(classifier.model.state_dict(),config.save_model_path)
         else:
             wait_cnt += 1
@@ -66,11 +66,12 @@ def train(classifier, config):
                 break
     #set_random_seed(79)   
     classifier.initialize_model(load_model_path=config.load_model_path)
+    
     final_metric = classifier.get_metric()
     end_time = time.time()
-    print('training finished-----------------precision:{:.2f}% '
+    print('training finished,best epoch :{}----precision:{:.2f}% '
               'recall:{:.2f}%, f-score:{:.2f}%, accuracy:{:.2f}%,' 
-              'roc-auc:{:.2f}% '.format(final_metric['p']*100, final_metric['r']*100, final_metric['f1']*100,
+              'roc-auc:{:.2f}% '.format(best_epoch, final_metric['p']*100, final_metric['r']*100, final_metric['f1']*100,
                                         final_metric['acc']*100, final_metric['auc']*100))
     #print('%.4f %.4f'%(best_acc, tst_acc))
     # np.save('driver/plot/loss', np.array(loss_list))

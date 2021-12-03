@@ -44,9 +44,7 @@ class Routing(nn.Module):
                 u = F.normalize(u, dim=-1)
         return u.view(n,d)
 
+
+
         
-
-
-
-
 
