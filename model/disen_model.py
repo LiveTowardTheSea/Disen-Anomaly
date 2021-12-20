@@ -6,10 +6,16 @@ class Disen_Model(nn.Module):
     def __init__(self, feature_dim, config):
         super().__init__()
         self.encoder = Encoder(feature_dim, config=config)
-        self.decoder = Decoder(feature_dim,node_dim=config.nchannel*config.kdim,
-                               edge_dim=config.channel*config.kdim, edge_channel=config.channel)
+        if config.deck != 0:
+            final_channel = max(config.channel - (config.n_layer-1) * config.deck, 1)
+            final_dim = final_channel * config.kdim
+        else:
+            final_dim = config.channel*config.kdim
+
+        self.decoder = Decoder(feature_dim, node_dim=config.nchannel*config.kdim,
+                               edge_dim=final_dim, edge_channel=config.channel)
     
     def forward(self, x, neighbor_id):
-        n_feature, ne_feature, mutual_info = self.encoder(x, neighbor_id)
-        decode_attribute, decode_adj = self.decoder(n_feature, ne_feature, neighbor_id)
-        return decode_attribute, decode_adj, mutual_info
+        ne_feature = self.encoder(x, neighbor_id)
+        decode_attribute, decode_adj = self.decoder(ne_feature, neighbor_id)
+        return decode_attribute, decode_adj

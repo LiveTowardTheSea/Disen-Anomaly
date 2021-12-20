@@ -40,26 +40,29 @@ def train(classifier, config):
     if not os.path.exists(config.save_dir):
         os.mkdir(config.save_dir)
     for i in range(config.epoch):
-        loss_value = classifier.compute_loss()
+        loss_dict = classifier.compute_loss()
+        loss_value = loss_dict['loss']
         loss_value.backward()
         loss_item = loss_value.detach().cpu().item()
+        adj_loss_item = loss_dict['adj_loss'].detach().cpu().numpy()
+        att_loss_item = loss_dict['att_loss'].detach().cpu().numpy()
         loss_list.append(loss_item)
         torch.nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, classifier.model.parameters()), \
                         max_norm=config.clip)
         optimizer.step()
         metrics = classifier.get_metric()
         metric_list.append(metrics)
-        print('Epoch: {}/{} ---- train-loss:{:.4f}, precision:{:.2f}%, '
+        print('Epoch: {}/{} ---- train-loss:{:.4f}, adj_loss:{}, att_loss:{}, precision:{:.2f}%, '
               'recall:{:.2f}%, f-score:{:.2f}%, structure_num:{}, '
-              'attribute_num:{}, roc-auc:{:.2f}% '.format(i+1, config.epoch, loss_item, metrics['p']*100,
-                                                 metrics['r']*100, metrics['f1']*100,metrics['structure_num'],
-                                                 metrics['attribute_num'], metrics['auc']*100))
+              'attribute_num:{}, roc-auc:{:.2f}% '.format(i+1, config.epoch, loss_item, adj_loss_item, att_loss_item,
+                                                        metrics['p']*100, metrics['r']*100, metrics['f1']*100,
+                                                        metrics['structure_num'],metrics['attribute_num'], metrics['auc']*100))
         
         if metrics['f1'] >= best_f1:
             wait_cnt = 0
             best_f1 = metrics['f1']
             best_epoch = i+1
-            torch.save(classifier.model.state_dict(),config.save_model_path)
+            torch.save(classifier.model.state_dict(), config.save_model_path)
         else:
             wait_cnt += 1
             if wait_cnt == config.early_stop:
@@ -67,7 +70,7 @@ def train(classifier, config):
     #set_random_seed(79)   
     classifier.initialize_model(load_model_path=config.load_model_path)
     
-    final_metric = classifier.get_metric()
+    final_metric = classifier.get_metric(print_detail=True)
     end_time = time.time()
     print('training finished,best epoch :{}----precision:{:.2f}% '
               'recall:{:.2f}%, f-score:{:.2f}%, accuracy:{:.2f}%,' 

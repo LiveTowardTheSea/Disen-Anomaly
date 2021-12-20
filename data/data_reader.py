@@ -30,8 +30,9 @@ class DataLoader:
 
     def initialize_member(self):
         # 保存文件到anom_data里面 
-        generate_anomaly(self.load_dir,self.save_dir,self.data_name,self.seed,self.m,self.num,self.k)
-        load_mat_path = os.path.join(self.save_dir, self.data_name, 'data.mat')
+        # generate_anomaly(self.load_dir, self.save_dir,self.data_name,self.seed, self.m, self.num, self.k)
+        # load_mat_path = os.path.join(self.save_dir, self.data_name, 'data.mat')
+        load_mat_path = os.path.join(self.save_dir, self.data_name, 'data_dominant.mat')
         if os.path.isfile(load_mat_path):
             mat = sio.loadmat(load_mat_path)
         else:
@@ -41,26 +42,31 @@ class DataLoader:
         feature =  mat['Attributes'] #scipy.csr_matrix
         label = mat['Label']
         adj = mat['Network']             #scipy.csr_matrix
-        structure_label = mat['str_anomaly_label']
-        attribute_label = mat['attr_anomaly_label']
         orig_label = mat['Class']
         # 图
         self.adj = np.array(adj.todense(), dtype=np.float32)
         self.graph = self.adj2nx(adj)
         self.feature = feature.toarray().astype(np.float32)
         self.label = label.astype(np.int64) 
-        self.structure_label = structure_label.astype(np.int64)
-        self.attribute_label = attribute_label.astype(np.int64)
+        structure_label_num = 0
+        attribute_label_num = 0
         self.orig_label = orig_label.astype(np.int64)
 
         self.n = self.feature.shape[0]
         self.d = self.feature.shape[1]
         self.c = 2
-        structure_label_num = np.sum(structure_label)
-        attribute_label_num = np.sum(attribute_label)
-        print('%d instance, feature_dim:%d, edge:%d,class:%d,strucute anomaly:%d, attribute_anomaly:%d'%(self.n, self.d, self.graph.number_of_edges(),
-                                                                                                                                                                                                                                self.c, structure_label_num,attribute_label_num))
+        # 判断是否还有structure 以及Attribute 的标签
+        if 'str_anomaly_label' in mat.keys() and 'attr_anomaly_label' in mat.keys():
+            structure_label = mat['str_anomaly_label']
+            attribute_label = mat['attr_anomaly_label']
+            structure_label_num = np.sum(structure_label)
+            attribute_label_num = np.sum(attribute_label)
+            self.structure_label = structure_label.astype(np.int64)
+            self.attribute_label = attribute_label.astype(np.int64)
 
+        print('%d instance, feature_dim:%d, edge:%d,'
+             ' class:%d, strucute anomaly:%d, attribute_anomaly:%d'%(self.n, self.d, self.graph.number_of_edges(),
+                                                                     self.c, structure_label_num,attribute_label_num))
     def adj2nx(self, adj):
         # 获得关于图的表示
         graph = nx.Graph()

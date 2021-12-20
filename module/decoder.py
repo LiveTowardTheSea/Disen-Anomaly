@@ -1,7 +1,4 @@
 # 考虑只生成连接矩阵的情况
-from platform import node
-from random import sample
-from numpy import ediff1d
 import torch.nn as nn
 import torch.nn.functional as F
 import  torch
@@ -53,18 +50,18 @@ class Decoder(nn.Module):
         return attention_vector #(n,d)
 
 
-    def generete_attribute(self, node_feature, agg_feature, nb_id):
-        # context_feature = self.generate_context_feature(agg_feature, nb_id)
+    def generete_attribute(self, agg_feature, nb_id):
+        context_feature = self.generate_context_feature(agg_feature, nb_id)
         # # # # # node_feature = torch.cat((node_feature,context_feature),dim=-1)
-        # node_feature = context_feature
-        node_feature = agg_feature
+        node_feature = context_feature
+        # node_feature = agg_feature
         # generate_node_feature = torch.sigmoid(self.attr_decoder(node_feature))
-        generate_node_feature = torch.sigmoid(self.attr_decoder(node_feature))
+        generate_node_feature = F.relu(self.attr_decoder(node_feature))
         return generate_node_feature
 
     def generate_adj(self,agg_feature):
         # 将 agg_feature 进行归一化
-        agg_feature = self.layer_norm(agg_feature)
+        # agg_feature = self.layer_norm(agg_feature)
         # node_feature = self.layer_norm(node_feature)
         agg_feature_trans = agg_feature.transpose(0,1)
         edge_prob = torch.matmul(agg_feature, agg_feature_trans)
@@ -75,8 +72,7 @@ class Decoder(nn.Module):
         sample_num = agg_feature.shape[0]
         agg_feature = agg_feature.view(sample_num, self.edge_channel, -1)
         edge_channel_prob = torch.einsum('bcd,scd->bsc',agg_feature, agg_feature) #(b,b,c)
-        edge_channel_prob = torch.mean(edge_channel_prob,dim=-1)
-        prob = torch.sigmoid(edge_channel_prob)
+        prob = torch.softmax(edge_channel_prob,dim=-1)
         return prob
 
     def generate_adj_linear(self, agg_feature):
@@ -94,9 +90,9 @@ class Decoder(nn.Module):
         edge_prob = torch.cat(edge_prob,dim=-1).transpose(0,1)
         return torch.sigmoid(edge_prob)
         
-    def forward(self, node_feature, agg_feature, nb_id):
+    def forward(self,agg_feature, nb_id):
         # agg_feature:聚合之后的特征（node, channel*k_dim）
         # 使用 邻居节点重建该节点的属性
-        decode_attribute = self.generete_attribute(node_feature, agg_feature, nb_id)
-        decode_adj = self.generate_disen_adj(agg_feature)
+        decode_attribute = self.generete_attribute( agg_feature, nb_id)
+        decode_adj = self.generate_adj(agg_feature)
         return decode_attribute, decode_adj

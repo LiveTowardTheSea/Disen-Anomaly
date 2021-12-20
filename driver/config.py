@@ -125,6 +125,10 @@ class Configurable:
         return int(self._config.get('Network', 'seed'))
 
     @property
+    def gnn(self):
+        return str(self._config.get('Network', 'gnn'))
+
+    @property
     def lr(self):
         return float(self._config.get('Optimizer', 'lr'))
 

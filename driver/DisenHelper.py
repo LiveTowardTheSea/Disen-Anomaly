@@ -30,20 +30,21 @@ class DisenHelper(object):
         feature = torch.from_numpy(feature).float()
         label = torch.from_numpy(label).long()  #(n,c)
         adj = torch.from_numpy(adj).float()
-        structure_label = torch.from_numpy(structure_label).long()
-        attribute_label = torch.from_numpy(attribute_label).long()
         if  self.config.use_cuda:   # 使用cuda
             feature = feature.cuda()
             adj = adj.cuda()
             label = label.cuda()
-            structure_label = structure_label.cuda()
-            attribute_label = attribute_label.cuda()
+            if structure_label is not None:
+                structure_label = torch.from_numpy(structure_label).long()
+                attribute_label = torch.from_numpy(attribute_label).long()
+                structure_label = structure_label.cuda()
+                attribute_label = attribute_label.cuda()
         self.feature = feature
+        self.sample_num = feature.shape[0]
         self.label = label
         self.adj = adj
         self.structure_label = structure_label
         self.attribute_label = attribute_label
-
         self.alpha = self.config.alpha
         self.loss_fn = self.att_adj_mutual
         self.mutual_beta = self.config.mutual_beta
@@ -69,11 +70,18 @@ class DisenHelper(object):
  
     def att_adj_mutual(self):
         att_dis = self.feature - self.decode_attribute
-        att_dis = torch.sum(torch.pow(att_dis, 2))
+        att_dis = torch.sqrt(torch.sum(torch.pow(att_dis, 2), 1))
         adj_dis = self.adj - self.decode_adj
-        adj_dis = torch.sum(torch.pow(adj_dis, 2))
-        mi_lb = torch.sum(self.mutual_info['mi_lb'])
-        return self.alpha * att_dis +(1-self.alpha) * adj_dis + self.mutual_beta *mi_lb
+        adj_dis = torch.sqrt(torch.sum(torch.pow(adj_dis, 2), 1))
+        # mi_lb = torch.sum(self.mutual_info['mi_lb'])
+        loss = self.alpha * att_dis +(1-self.alpha) * adj_dis
+        # 求均值
+        att_dis = torch.mean(att_dis)
+        adj_dis = torch.mean(adj_dis)
+        loss = torch.mean(loss)
+        return {'loss':loss,
+                'att_loss': att_dis,
+                'adj_loss': adj_dis}
 
     # 计算包括训练集在内的所有结果，存入属性中
     # resample  在每一次forward中采样不同的节点
@@ -85,10 +93,9 @@ class DisenHelper(object):
         neighbor_id = torch.from_numpy(neighbor_id).long()
         if  self.config.use_cuda:
             neighbor_id = neighbor_id.cuda()
-        decode_attribute, decode_adj, mutual_info = self.model(self.feature, neighbor_id.view(-1)) 
+        decode_attribute, decode_adj = self.model(self.feature, neighbor_id.view(-1)) 
         self.decode_attribute = decode_attribute
         self.decode_adj = decode_adj
-        self.mutual_info = mutual_info
 
     def compute_loss(self):
         # label (n,c) nd_array
@@ -97,12 +104,19 @@ class DisenHelper(object):
         self.forward()
         return self.loss_fn()
 
-    def compute_score(self):
+    def compute_score(self, print_detail):
         adj_distance = torch.pow((self.decode_adj - self.adj), 2)
         adj_score = torch.sum(adj_distance, dim=-1,keepdim=True)   # (n,1)
         att_distance = torch.pow((self.decode_attribute - self.feature), 2)
         att_score = torch.sum(att_distance, dim=-1,keepdim=True)   # (n,1)  
         score = self.alpha * torch.sqrt(att_score) + (1-self.alpha) * torch.sqrt(adj_score)
+        if print_detail:
+            save_adj_score = adj_score.cpu().detach().numpy()  #(n,1)
+            save_att_score = att_score.cpu().detach().numpy()
+            save_score = score.cpu().detach().numpy()
+            np.save('plot/adj_score',save_adj_score)
+            np.save('plot/att_score',save_att_score)
+            np.save('plot/score',save_score)
         return score
 
     def label_by_rank(self, pred_score):
@@ -115,11 +129,11 @@ class DisenHelper(object):
         pred_label[anomaly_idx, 0] = 1
         return pred_label
         
-    def get_metric(self):
+    def get_metric(self,print_detail=False):
         self.model.eval()
         #score = torch.sigmoid(self.logits[idx])
         self.forward(keep_big_degree=True) #(n, n)
-        pred_score = self.compute_score()  #(n,1)
+        pred_score = self.compute_score(print_detail)  #(n,1)
         pred_label = self.label_by_rank(pred_score) #(n,1) gpu
         res = self.compute_matric(pred_score,pred_label)
         return res
@@ -128,15 +142,19 @@ class DisenHelper(object):
         if self.config.use_cuda:
             pred_label = pred_label.cpu().numpy()    # unknwon whether use detach or not
             targ_label = self.label.cpu().numpy()
+            pred_score = pred_score.detach().cpu().numpy()
+        evaluation = metric.eval_pr(pred_score, pred_label, targ_label)
+        # 预测对的结构异常的数目
+        if self.structure_label is not None:
             targ_s_label = self.structure_label.cpu().numpy()
             targ_a_label = self.attribute_label.cpu().numpy()
-            pred_score = pred_score.detach().cpu().numpy()
-        # 预测对的结构异常的数目
-        pred_right_s = np.sum((pred_label == 1)*(pred_label == targ_s_label))
-        pred_right_a = np.sum((pred_label == 1)*(pred_label == targ_a_label))
-        evaluation = metric.eval_pr(pred_score, pred_label, targ_label)
-        evaluation['structure_num'] = pred_right_s
-        evaluation['attribute_num'] = pred_right_a
+            pred_right_s = np.sum((pred_label == 1)*(pred_label == targ_s_label))
+            pred_right_a = np.sum((pred_label == 1)*(pred_label == targ_a_label))
+            evaluation['structure_num'] = pred_right_s
+            evaluation['attribute_num'] = pred_right_a
+        else:
+            evaluation['structure_num'] = 0
+            evaluation['attribute_num'] = 0
         return evaluation
 
 
