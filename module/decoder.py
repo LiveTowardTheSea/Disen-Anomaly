@@ -8,7 +8,7 @@ def generate_mask(neighbor, mask_id):
     return (neighbor == mask_id).bool()
 
 class Decoder(nn.Module):
-    def __init__(self, orig_dim, node_dim, edge_dim, edge_channel):
+    def __init__(self, orig_dim, edge_dim, edge_channel, node_num=-1):
         # 由聚合的特征，反过来推导属性特征如何办
         #（）
         super().__init__()
@@ -17,7 +17,7 @@ class Decoder(nn.Module):
         #self.str_decoder = nn.Linear(edge_dim*2, 1)
         self.attr_decoder = nn.Linear(edge_dim, orig_dim)
         self.edge_channel = edge_channel
-        self.layer_norm = nn.LayerNorm(edge_dim)
+        # self.layer_norm = nn.LayerNorm(edge_dim)
  
     def generate_context_feature(self, agg_feature, nb_id):
         # multi-head 很像
@@ -51,8 +51,8 @@ class Decoder(nn.Module):
 
 
     def generete_attribute(self, agg_feature, nb_id):
+        # # # node_feature = torch.cat((node_feature,context_feature),dim=-1)
         context_feature = self.generate_context_feature(agg_feature, nb_id)
-        # # # # # node_feature = torch.cat((node_feature,context_feature),dim=-1)
         node_feature = context_feature
         # node_feature = agg_feature
         # generate_node_feature = torch.sigmoid(self.attr_decoder(node_feature))
@@ -90,9 +90,32 @@ class Decoder(nn.Module):
         edge_prob = torch.cat(edge_prob,dim=-1).transpose(0,1)
         return torch.sigmoid(edge_prob)
         
-    def forward(self,agg_feature, nb_id):
+    def forward(self, agg_feature, nb_id):
         # agg_feature:聚合之后的特征（node, channel*k_dim）
         # 使用 邻居节点重建该节点的属性
-        decode_attribute = self.generete_attribute( agg_feature, nb_id)
+        decode_attribute = self.generete_attribute(agg_feature, nb_id)
         decode_adj = self.generate_adj(agg_feature)
         return decode_attribute, decode_adj
+
+
+
+class DAE_Decoder(nn.Module):
+    def __init__(self, dropout):
+        super().__init__()
+        self.ne_dropout = nn.Dropout(dropout)
+        self.n_dropout = nn.Dropout(dropout)
+    def forward(self,n_feature, ne_feature):
+        ne_feature = self.ne_dropout(ne_feature)
+        ne_feature_trans = ne_feature.transpose(0,1)
+        edge_prob = torch.matmul(ne_feature, ne_feature_trans)
+        edge_prob = torch.sigmoid(edge_prob)
+        decode_adj = edge_prob
+        # 解码得到属性
+        #（d,D)
+        n_feature = self.n_dropout(n_feature)
+        n_feature_trans = n_feature.transpose(0,1) #(D,d)
+        decode_attribute = torch.matmul(ne_feature, n_feature_trans)
+        return decode_attribute, decode_adj
+
+        
+

@@ -47,6 +47,7 @@ class DataLoader:
         self.adj = np.array(adj.todense(), dtype=np.float32)
         self.graph = self.adj2nx(adj)
         self.feature = feature.toarray().astype(np.float32)
+        
         self.label = label.astype(np.int64) 
         structure_label_num = 0
         attribute_label_num = 0
@@ -97,9 +98,4 @@ class DataLoader:
     
     def get_attribute_label(self):
         return self.attribute_label
-
-
-
-
-
-
+        

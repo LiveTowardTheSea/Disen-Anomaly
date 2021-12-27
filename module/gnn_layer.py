@@ -4,7 +4,7 @@ import torch
 import math
 
 class Routing(nn.Module):
-    def __init__(self, k_dim, out_caps, in_caps,rout_it, tau, every_linear=True):
+    def __init__(self, k_dim, out_caps, in_caps, rout_it, tau, every_linear=True):
         super().__init__()
         if in_caps is not None and (in_caps != out_caps or every_linear):
             self.fc = nn.Linear(in_caps*k_dim, out_caps*k_dim)

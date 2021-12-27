@@ -8,6 +8,7 @@ import argparse
 import numpy as np
 from DisenHelper import DisenHelper
 from data.data_reader import DataLoader
+from torch.optim.lr_scheduler import *
 import os
 import time
 def set_random_seed(seed):
@@ -19,8 +20,10 @@ def set_random_seed(seed):
 class Optimizer:
     def __init__(self, parameter, config):
         self.optim = torch.optim.Adam(parameter,lr=config.lr, betas=(config.beta1,config.beta2),eps=config.epsilon,weight_decay=config.reg)
+        self.schedular = StepLR(self.optim, step_size=10, gamma=0.8)
 
     def step(self):
+        self.schedular.step()
         self.optim.step()
         self.optim.zero_grad()
 
@@ -47,20 +50,20 @@ def train(classifier, config):
         adj_loss_item = loss_dict['adj_loss'].detach().cpu().numpy()
         att_loss_item = loss_dict['att_loss'].detach().cpu().numpy()
         loss_list.append(loss_item)
-        torch.nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, classifier.model.parameters()), \
-                        max_norm=config.clip)
+        # torch.nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, classifier.model.parameters()), \
+        #                 max_norm=config.clip)
         optimizer.step()
         metrics = classifier.get_metric()
         metric_list.append(metrics)
-        print('Epoch: {}/{} ---- train-loss:{:.4f}, adj_loss:{}, att_loss:{}, precision:{:.2f}%, '
-              'recall:{:.2f}%, f-score:{:.2f}%, structure_num:{}, '
-              'attribute_num:{}, roc-auc:{:.2f}% '.format(i+1, config.epoch, loss_item, adj_loss_item, att_loss_item,
-                                                        metrics['p']*100, metrics['r']*100, metrics['f1']*100,
-                                                        metrics['structure_num'],metrics['attribute_num'], metrics['auc']*100))
+        print('Epoch: {}/{} ---- train-loss:{:.2f}, adj_loss:{:.2f}, att_loss:{:.2f}, p-50:{:.2f}%, '
+               'p-100:{:.2f}%, p-200:{:.2f}%, p-300:{:.2f}%, structure_num:{}, attribute_num:{}, roc-auc:{:.2f}% '.format(i+1,
+                                                        config.epoch, loss_item, adj_loss_item, att_loss_item,
+                                                        metrics['p'][-1]*100, metrics['p'][-2]*100, metrics['p'][-3]*100, metrics['p'][-4]*100,
+                                                        metrics['structure_num'], metrics['attribute_num'], metrics['auc']*100))
         
-        if metrics['f1'] >= best_f1:
+        if metrics['auc'] >= best_f1:
             wait_cnt = 0
-            best_f1 = metrics['f1']
+            best_f1 = metrics['auc']
             best_epoch = i+1
             torch.save(classifier.model.state_dict(), config.save_model_path)
         else:
@@ -70,17 +73,17 @@ def train(classifier, config):
     #set_random_seed(79)   
     classifier.initialize_model(load_model_path=config.load_model_path)
     
-    final_metric = classifier.get_metric(print_detail=True)
+    test_m = classifier.get_metric(print_detail=True)
     end_time = time.time()
-    print('training finished,best epoch :{}----precision:{:.2f}% '
-              'recall:{:.2f}%, f-score:{:.2f}%, accuracy:{:.2f}%,' 
-              'roc-auc:{:.2f}% '.format(best_epoch, final_metric['p']*100, final_metric['r']*100, final_metric['f1']*100,
-                                        final_metric['acc']*100, final_metric['auc']*100))
+    print('Traning finished, epoch:{}, best-result: p-50:{:.2f}%, p-100:{:.2f}%, p-200:{:.2f}%, p-300:{:.2f}%, '
+          'structure_num:{}, attribute_num:{}, roc-auc:{:.2f}% '.format(best_epoch,
+                                                        test_m['p'][-1]*100, test_m['p'][-2]*100, test_m['p'][-3]*100, test_m['p'][-4]*100,
+                                                        test_m['structure_num'], test_m['attribute_num'], test_m['auc']*100))
     #print('%.4f %.4f'%(best_acc, tst_acc))
     # np.save('driver/plot/loss', np.array(loss_list))
     # np.save('driver/plot/micro', np.array(micro_list))
     # np.save('driver/plot/macro', np.array(macro_list))
-    return final_metric
+    return test_m
 
 def main(config=None):
     # 关于模型参数的配置

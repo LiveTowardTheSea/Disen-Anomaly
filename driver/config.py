@@ -72,8 +72,8 @@ class Configurable:
         return int(self._config.get('Network', 'n_layer'))
 
     @property
-    def nchannel(self):
-        return int(self._config.get('Network', 'nchannel'))
+    def n_hidden(self):
+        return int(self._config.get('Network', 'n_hidden'))
 
     @property
     def channel(self):
@@ -129,6 +129,10 @@ class Configurable:
         return str(self._config.get('Network', 'gnn'))
 
     @property
+    def frame(self):
+        return str(self._config.get('Network', 'frame'))
+
+    @property
     def lr(self):
         return float(self._config.get('Optimizer', 'lr'))
 
@@ -169,9 +173,16 @@ class Configurable:
         return int(self._config.get('Loss', 'nrank'))                 
 
     @property
+    def ita(self):
+        return float(self._config.get('Loss', 'ita'))
+
+    @property
+    def theta(self):
+        return float(self._config.get('Loss', 'theta'))
+
+    @property
     def mutual_hidden(self):
         return int(self._config.get('Loss', 'mutual_hidden'))
-
     @property
     def ind_channel(self):
         return int(self._config.get('Loss', 'ind_channel'))                 

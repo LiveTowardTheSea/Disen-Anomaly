@@ -61,3 +61,4 @@ class Mine(nn.Module):
         return {'le':le,
                 're':re,
                 'mi_lb':mi_lb}
+                

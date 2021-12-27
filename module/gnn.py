@@ -75,3 +75,10 @@ class GAT(nn.Module):
             x = self.layers[i](x,nb_id)
         return x
     
+
+# class linear(nn.Module):
+#     def __init__(self, feature_dim, nlayer, dropout, first_channel, k_dim, dec_k):
+#         super().__init__()
+#         self.fc = nn.ModuleList()
+#         for i in range(nlayer):
+#             self.fc.append(nn.Linear(feature))
