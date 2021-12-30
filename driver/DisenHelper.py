@@ -165,18 +165,16 @@ class DisenHelper(object):
             targ_label = self.label.cpu().numpy()
             pred_score = pred_score.detach().cpu().numpy()
             anomaly_idx = anomaly_idx.detach().cpu().numpy()
-        evaluation = metric.eval_pr(pred_score, pred_label, targ_label, anomaly_idx)
         # 预测对的结构异常的数目
+        pred_right_s, pred_right_a = (0,0)
         if self.structure_label is not None:
             targ_s_label = self.structure_label.cpu().numpy()
             targ_a_label = self.attribute_label.cpu().numpy()
             pred_right_s = np.sum((pred_label == 1)*(pred_label == targ_s_label))
             pred_right_a = np.sum((pred_label == 1)*(pred_label == targ_a_label))
-            evaluation['structure_num'] = pred_right_s
-            evaluation['attribute_num'] = pred_right_a
-        else:
-            evaluation['structure_num'] = 0
-            evaluation['attribute_num'] = 0
+        evaluation = metric.eval_pr(pred_score, pred_label, targ_label, anomaly_idx)
+        evaluation['structure_num'] = pred_right_s
+        evaluation['attribute_num'] = pred_right_a
         return evaluation
 
 

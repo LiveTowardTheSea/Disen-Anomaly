@@ -133,6 +133,10 @@ class Configurable:
         return str(self._config.get('Network', 'frame'))
 
     @property
+    def view_attn(self):
+        return bool(int(self._config.get('Network', 'view_attn')))
+
+    @property
     def lr(self):
         return float(self._config.get('Optimizer', 'lr'))
 

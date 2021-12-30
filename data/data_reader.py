@@ -32,7 +32,7 @@ class DataLoader:
         # 保存文件到anom_data里面 
         # generate_anomaly(self.load_dir, self.save_dir,self.data_name,self.seed, self.m, self.num, self.k)
         # load_mat_path = os.path.join(self.save_dir, self.data_name, 'data.mat')
-        load_mat_path = os.path.join(self.save_dir, self.data_name, 'data_dominant.mat')
+        load_mat_path = os.path.join(self.save_dir, self.data_name, 'data.mat')
         if os.path.isfile(load_mat_path):
             mat = sio.loadmat(load_mat_path)
         else:

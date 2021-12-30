@@ -20,11 +20,11 @@ def set_random_seed(seed):
 class Optimizer:
     def __init__(self, parameter, config):
         self.optim = torch.optim.Adam(parameter,lr=config.lr, betas=(config.beta1,config.beta2),eps=config.epsilon,weight_decay=config.reg)
-        self.schedular = StepLR(self.optim, step_size=10, gamma=0.8)
+        self.schedular = StepLR(self.optim, step_size=10, gamma=0.7)
 
     def step(self):
-        self.schedular.step()
         self.optim.step()
+        self.schedular.step()
         self.optim.zero_grad()
 
 # 在macro偶然出现的很高的情况，实则并不具备泛化能力
@@ -42,6 +42,10 @@ def train(classifier, config):
     sts_time = time.time()
     if not os.path.exists(config.save_dir):
         os.mkdir(config.save_dir)
+    init_metric = classifier.get_metric()
+    print('Epoch: 0/ ------ p-50:{:.2f}%, p-100:{:.2f}%, p-200:{:.2f}%, p-300:{:.2f}%,' 
+          'structure_num:{}, attribute_num:{}, roc-auc:{:.2f}% '.format(init_metric['p'][-1]*100, init_metric['p'][-2]*100, init_metric['p'][-3]*100, init_metric['p'][-4]*100,
+                                                init_metric['structure_num'], init_metric['attribute_num'], init_metric['auc']*100))
     for i in range(config.epoch):
         loss_dict = classifier.compute_loss()
         loss_value = loss_dict['loss']

@@ -10,9 +10,10 @@ class Disen_Dominant(nn.Module):
             final_channel = max(config.channel - (config.n_layer-1) * config.deck, 1)
             final_dim = final_channel * config.kdim
         else:
+            final_channel = config.channel
             final_dim = config.channel*config.kdim
 
-        self.decoder = Decoder(feature_dim, edge_dim=final_dim, edge_channel=config.channel)
+        self.decoder = Decoder(feature_dim, edge_dim=final_dim, edge_channel=final_channel, view_attn=config.view_attn)
     
     def forward(self, x, neighbor_id):
         ne_feature = self.encoder(x, neighbor_id)

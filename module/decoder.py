@@ -8,17 +8,27 @@ def generate_mask(neighbor, mask_id):
     return (neighbor == mask_id).bool()
 
 class Decoder(nn.Module):
-    def __init__(self, orig_dim, edge_dim, edge_channel, node_num=-1):
+    def __init__(self, orig_dim, edge_dim, edge_channel, view_attn=False):
         # 由聚合的特征，反过来推导属性特征如何办
         #（）
         super().__init__()
         self.catch_zero_d = torch.zeros(1, edge_dim)
         #self.attr_decoder = nn.Linear(node_dim + edge_dim, orig_dim)
         #self.str_decoder = nn.Linear(edge_dim*2, 1)
-        self.attr_decoder = nn.Linear(edge_dim, orig_dim)
+        decode_dim = edge_dim
+        self.view_attn = view_attn
+        if view_attn:
+            self.view_attn_vec = nn.Parameter(torch.zeros(edge_dim, edge_channel))
+            decode_dim = edge_dim // edge_channel
+            self.reset_parameter()
+        self.attr_decoder = nn.Linear(decode_dim, orig_dim)
         self.edge_channel = edge_channel
         # self.layer_norm = nn.LayerNorm(edge_dim)
- 
+    
+    def reset_parameter(self):
+        stdv = 1 / math.sqrt(self.view_attn_vec.data.shape[0])
+        self.view_attn_vec.data.uniform_(-stdv, stdv)
+
     def generate_context_feature(self, agg_feature, nb_id):
         # multi-head 很像
         node_num = agg_feature.shape[0]
@@ -49,14 +59,25 @@ class Decoder(nn.Module):
         attention_vector = torch.sum(attention_vector,dim=-2)
         return attention_vector #(n,d)
 
-
+    def generate_weighted_attribute(self, agg_feature):
+        node_num = agg_feature.shape[0]
+        p_view = torch.matmul(agg_feature, self.view_attn_vec)  #(n,view)
+        p_view = F.softmax(p_view, dim=-1)
+        p_view = p_view.unsqueeze(-1) #(n,view,-1)
+        agg_f = agg_feature.view(node_num, self.edge_channel, -1)
+        agg_f = p_view * agg_f
+        agg_f = torch.sum(agg_f, dim=1)
+        return agg_f
+         
     def generete_attribute(self, agg_feature, nb_id):
         # # # node_feature = torch.cat((node_feature,context_feature),dim=-1)
-        context_feature = self.generate_context_feature(agg_feature, nb_id)
-        node_feature = context_feature
-        # node_feature = agg_feature
+        # context_feature = self.generate_context_feature(agg_feature, nb_id)
+        # decode_feature = context_feature
+        decode_feature = agg_feature
+        if self.view_attn:
+            decode_feature = self.generate_weighted_attribute(agg_feature)
         # generate_node_feature = torch.sigmoid(self.attr_decoder(node_feature))
-        generate_node_feature = F.relu(self.attr_decoder(node_feature))
+        generate_node_feature = F.relu(self.attr_decoder(decode_feature))
         return generate_node_feature
 
     def generate_adj(self,agg_feature):
